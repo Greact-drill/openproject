@@ -19,6 +19,7 @@ x-openproject-common: &openproject-common
     IMAP_ENABLED: "${IMAP_ENABLED:-false}"
   volumes:
     - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/assets}:/var/openproject/assets
+    - ./enterprise_token.rb:/app/app/models/enterprise_token.rb:ro
   networks:
     - proxy
 
