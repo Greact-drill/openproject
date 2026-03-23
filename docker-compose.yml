@@ -6,7 +6,7 @@ x-openproject-common: &openproject-common
     dockerfile: Dockerfile
     args:
       OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.2.2-slim}
-  image: ${OPENPROJECT_IMAGE:-local/openproject:17.2.2-slim}
+  image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.2.2-slim}
   restart: unless-stopped
   environment: &openproject-env
     OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-true}"
@@ -18,7 +18,7 @@ x-openproject-common: &openproject-common
     SECRET_KEY_BASE: "${SECRET_KEY_BASE:-qwerty123}"
     IMAP_ENABLED: "${IMAP_ENABLED:-false}"
   volumes:
-    - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject/assets}:/var/openproject/assets
+    - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/assets}:/var/openproject/assets
   networks:
     - proxy
 
@@ -30,14 +30,14 @@ networks:
 services:
   openproject-db:
     image: postgres:17-alpine
-    container_name: openproject-db-prem
+    container_name: ${STACK_NAME:-openproject}-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: "${POSTGRES_DB:-openproject}"
       POSTGRES_USER: "${POSTGRES_USER:-openproject}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-qwerty123}"
     volumes:
-      - ${POSTGRES_DATA_PATH:-/opt/docker/openproject/postgres}:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/postgres}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openproject} -d ${POSTGRES_DB:-openproject}"]
       interval: 10s
@@ -48,7 +48,7 @@ services:
 
   openproject-cache:
     image: memcached:1.6-alpine
-    container_name: openproject-cache-prem
+    container_name: ${STACK_NAME:-openproject}-cache
     restart: unless-stopped
     command: memcached -m ${MEMCACHED_MEMORY_MB:-128}
     networks:
@@ -56,7 +56,7 @@ services:
 
   openproject-seeder:
     <<: *openproject-common
-    container_name: openproject-seeder-prem
+    container_name: ${STACK_NAME:-openproject}-seeder
     restart: on-failure
     depends_on:
       openproject-db:
@@ -67,7 +67,7 @@ services:
 
   openproject-web:
     <<: *openproject-common
-    container_name: openproject-web-prem
+    container_name: ${STACK_NAME:-openproject}-web
     depends_on:
       openproject-db:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
 
   openproject-worker:
     <<: *openproject-common
-    container_name: openproject-worker-prem
+    container_name: ${STACK_NAME:-openproject}-worker
     depends_on:
       openproject-db:
         condition: service_healthy
@@ -99,7 +99,7 @@ services:
 
   openproject-cron:
     <<: *openproject-common
-    container_name: openproject-cron-prem
+    container_name: ${STACK_NAME:-openproject}-cron
     depends_on:
       openproject-db:
         condition: service_healthy
