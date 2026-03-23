@@ -30,7 +30,7 @@ networks:
 services:
   openproject-db:
     image: postgres:17-alpine
-    container_name: openproject-db
+    container_name: openproject-db-prem
     restart: unless-stopped
     environment:
       POSTGRES_DB: "${POSTGRES_DB:-openproject}"
@@ -48,7 +48,7 @@ services:
 
   openproject-cache:
     image: memcached:1.6-alpine
-    container_name: openproject-cache
+    container_name: openproject-cache-prem
     restart: unless-stopped
     command: memcached -m ${MEMCACHED_MEMORY_MB:-128}
     networks:
@@ -56,7 +56,7 @@ services:
 
   openproject-seeder:
     <<: *openproject-common
-    container_name: openproject-seeder
+    container_name: openproject-seeder-prem
     restart: on-failure
     depends_on:
       openproject-db:
@@ -67,7 +67,7 @@ services:
 
   openproject-web:
     <<: *openproject-common
-    container_name: openproject-web
+    container_name: openproject-web-prem
     depends_on:
       openproject-db:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
 
   openproject-worker:
     <<: *openproject-common
-    container_name: openproject-worker
+    container_name: openproject-worker-prem
     depends_on:
       openproject-db:
         condition: service_healthy
@@ -99,7 +99,7 @@ services:
 
   openproject-cron:
     <<: *openproject-common
-    container_name: openproject-cron
+    container_name: openproject-cron-prem
     depends_on:
       openproject-db:
         condition: service_healthy
