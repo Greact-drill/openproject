@@ -1,0 +1,110 @@
+version: "3.8"
+
+x-openproject-common: &openproject-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.2.2-slim}
+  image: ${OPENPROJECT_IMAGE:-local/openproject:17.2.2-slim}
+  restart: unless-stopped
+  environment: &openproject-env
+    OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-true}"
+    OPENPROJECT_HOST__NAME: "${OPENPROJECT_HOST__NAME:-openproject.greact.ru}"
+    OPENPROJECT_HSTS: "${OPENPROJECT_HSTS:-true}"
+    DATABASE_URL: "postgres://${POSTGRES_USER:-openproject}:${POSTGRES_PASSWORD:-qwerty123}@openproject-db/${POSTGRES_DB:-openproject}?pool=20&encoding=unicode&reconnect=true"
+    OPENPROJECT_RAILS__CACHE__STORE: "memcache"
+    OPENPROJECT_CACHE__MEMCACHE__SERVER: "openproject-cache:11211"
+    SECRET_KEY_BASE: "${SECRET_KEY_BASE:-qwerty123}"
+    IMAP_ENABLED: "${IMAP_ENABLED:-false}"
+  volumes:
+    - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject/assets}:/var/openproject/assets
+  networks:
+    - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK_NAME:-proxy}
+
+services:
+  openproject-db:
+    image: postgres:17-alpine
+    container_name: openproject-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-openproject}"
+      POSTGRES_USER: "${POSTGRES_USER:-openproject}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-qwerty123}"
+    volumes:
+      - ${POSTGRES_DATA_PATH:-/opt/docker/openproject/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openproject} -d ${POSTGRES_DB:-openproject}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - proxy
+
+  openproject-cache:
+    image: memcached:1.6-alpine
+    container_name: openproject-cache
+    restart: unless-stopped
+    command: memcached -m ${MEMCACHED_MEMORY_MB:-128}
+    networks:
+      - proxy
+
+  openproject-seeder:
+    <<: *openproject-common
+    container_name: openproject-seeder
+    restart: on-failure
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+      openproject-cache:
+        condition: service_started
+    command: "./docker/prod/seeder"
+
+  openproject-web:
+    <<: *openproject-common
+    container_name: openproject-web
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+      openproject-cache:
+        condition: service_started
+      openproject-seeder:
+        condition: service_started
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health_checks/default"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: "./docker/prod/web"
+
+  openproject-worker:
+    <<: *openproject-common
+    container_name: openproject-worker
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+      openproject-cache:
+        condition: service_started
+      openproject-seeder:
+        condition: service_started
+    command: "./docker/prod/worker"
+
+  openproject-cron:
+    <<: *openproject-common
+    container_name: openproject-cron
+    depends_on:
+      openproject-db:
+        condition: service_healthy
+      openproject-cache:
+        condition: service_started
+      openproject-seeder:
+        condition: service_started
+    command: "./docker/prod/cron"
