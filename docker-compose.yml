@@ -18,7 +18,7 @@ x-openproject-common: &openproject-common
     SECRET_KEY_BASE: "${SECRET_KEY_BASE:-qwerty123}"
     IMAP_ENABLED: "${IMAP_ENABLED:-false}"
   volumes:
-    - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/assets}:/var/openproject/assets
+    - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}-1712/assets}:/var/openproject/assets
   networks:
     - proxy
 
@@ -37,7 +37,7 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:-openproject}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-qwerty123}"
     volumes:
-      - ${POSTGRES_DATA_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/postgres}:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH:-/opt/docker/openproject-${STACK_NAME:-main}-1712/postgres}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openproject} -d ${POSTGRES_DB:-openproject}"]
       interval: 10s
@@ -84,6 +84,8 @@ services:
       retries: 10
       start_period: 30s
     command: "./docker/prod/web"
+    networks:
+      - proxy
 
   openproject-worker:
     <<: *openproject-common
