@@ -5,8 +5,8 @@ x-openproject-common: &openproject-common
     context: .
     dockerfile: Dockerfile
     args:
-      OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.2.2-slim}
-  image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.2.2-slim}
+      OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.2.2}
+  image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.2.2}
   restart: unless-stopped
   environment: &openproject-env
     OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-true}"
