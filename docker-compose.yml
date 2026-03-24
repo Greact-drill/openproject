@@ -5,8 +5,8 @@ x-openproject-common: &openproject-common
     context: .
     dockerfile: Dockerfile
     args:
-      OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.2.2}
-  image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.2.2}
+      OPENPROJECT_VERSION: ${OPENPROJECT_VERSION:-17.1.2}
+  image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.1.2}
   restart: unless-stopped
   environment: &openproject-env
     OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-true}"
@@ -19,7 +19,6 @@ x-openproject-common: &openproject-common
     IMAP_ENABLED: "${IMAP_ENABLED:-false}"
   volumes:
     - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}/assets}:/var/openproject/assets
-    - ./enterprise_token.rb:/app/app/models/enterprise_token.rb:ro
   networks:
     - proxy
 
