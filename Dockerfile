@@ -1,4 +1,4 @@
-ARG OPENPROJECT_VERSION=17.2.2-slim
+ARG OPENPROJECT_VERSION=17.1.2
 FROM openproject/openproject:${OPENPROJECT_VERSION}
 COPY enterprise_token.rb /app/models/enterprise_token.rb
 
