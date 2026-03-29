@@ -1,5 +1,8 @@
 version: "3.8"
 
+# ========================
+# Общие настройки для OpenProject
+# ========================
 x-openproject-common: &openproject-common
   build:
     context: .
@@ -9,6 +12,7 @@ x-openproject-common: &openproject-common
   image: ${OPENPROJECT_IMAGE:-local/openproject-${STACK_NAME:-main}:17.1.2}
   restart: unless-stopped
   environment: &openproject-env
+    # Основные настройки OpenProject
     OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-true}"
     OPENPROJECT_HOST__NAME: "${OPENPROJECT_HOST__NAME:-openproject.greact.ru}"
     OPENPROJECT_HSTS: "${OPENPROJECT_HSTS:-true}"
@@ -17,17 +21,37 @@ x-openproject-common: &openproject-common
     OPENPROJECT_CACHE__MEMCACHE__SERVER: "openproject-cache:11211"
     SECRET_KEY_BASE: "${SECRET_KEY_BASE:-qwerty123}"
     IMAP_ENABLED: "${IMAP_ENABLED:-false}"
+
+    # ========== НАСТРОЙКИ ОБЛАЧНОГО ХРАНИЛИЩА (MINIO) ==========
+    OPENPROJECT_ATTACHMENTS__STORAGE: "fog"
+    OPENPROJECT_FOG_CREDENTIALS_PROVIDER: "AWS"
+    OPENPROJECT_FOG_CREDENTIALS_REGION: "us-east-1"          # регион не важен для MinIO, но обязателен
+    OPENPROJECT_FOG_CREDENTIALS_AWS__ACCESS__KEY__ID: "${MINIO_ROOT_USER:-minioadmin}"
+    OPENPROJECT_FOG_CREDENTIALS_AWS__SECRET__ACCESS__KEY: "${MINIO_ROOT_PASSWORD:-minioadmin123}"
+    OPENPROJECT_FOG_DIRECTORY: "openproject-assets"          # имя бакета
+    OPENPROJECT_FOG_CREDENTIALS_HOST: "http://minio:9000"    # внутренний адрес MinIO
+    OPENPROJECT_FOG_CREDENTIALS_PATH__STYLE: "true"          # обязательно для MinIO
+    OPENPROJECT_FOG_CREDENTIALS_USE__SSL: "false"            # внутри Docker используем HTTP
+
   volumes:
+    # Локальные ассеты – остаются, но после переключения на MinIO они не будут использоваться для новых файлов
     - ${OPENPROJECT_ASSETS_PATH:-/opt/docker/openproject-${STACK_NAME:-main}-1712/assets}:/var/openproject/assets
   networks:
     - proxy
 
+# ========================
+# Сети
+# ========================
 networks:
   proxy:
     external: true
     name: ${PROXY_NETWORK_NAME:-proxy}
 
+# ========================
+# Сервисы
+# ========================
 services:
+  # ---------- PostgreSQL ----------
   openproject-db:
     image: postgres:17-alpine
     container_name: ${STACK_NAME:-openproject}-db
@@ -46,6 +70,7 @@ services:
     networks:
       - proxy
 
+  # ---------- Memcached ----------
   openproject-cache:
     image: memcached:1.6-alpine
     container_name: ${STACK_NAME:-openproject}-cache
@@ -54,6 +79,7 @@ services:
     networks:
       - proxy
 
+  # ---------- Seeder (однократная инициализация) ----------
   openproject-seeder:
     <<: *openproject-common
     container_name: ${STACK_NAME:-openproject}-seeder
@@ -65,6 +91,7 @@ services:
         condition: service_started
     command: "./docker/prod/seeder"
 
+  # ---------- Web ----------
   openproject-web:
     <<: *openproject-common
     container_name: ${STACK_NAME:-openproject}-web
@@ -87,6 +114,7 @@ services:
     networks:
       - proxy
 
+  # ---------- Worker ----------
   openproject-worker:
     <<: *openproject-common
     container_name: ${STACK_NAME:-openproject}-worker
@@ -98,7 +126,10 @@ services:
       openproject-seeder:
         condition: service_started
     command: "./docker/prod/worker"
+    networks:
+      - proxy
 
+  # ---------- Cron ----------
   openproject-cron:
     <<: *openproject-common
     container_name: ${STACK_NAME:-openproject}-cron
@@ -110,3 +141,44 @@ services:
       openproject-seeder:
         condition: service_started
     command: "./docker/prod/cron"
+    networks:
+      - proxy
+
+  # ========== НОВЫЙ СЕРВИС: MINIO ==========
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: ${STACK_NAME:-openproject}-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - ${MINIO_DATA_PATH:-/opt/docker/openproject-${STACK_NAME:-main}-1712/minio}:/data
+    expose:
+      - "9000"   # S3 API
+      - "9001"   # Web консоль (можно открыть наружу, если нужно)
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ---------- Временный контейнер для создания бакета в MinIO ----------
+  minio-create-bucket:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin123};
+      mc mb myminio/openproject-assets --ignore-existing;
+      echo 'Bucket \"openproject-assets\" is ready.';
+      exit 0;
+      "
+    networks:
+      - proxy
+    restart: "no"
