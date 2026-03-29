@@ -32,6 +32,8 @@ x-openproject-common: &openproject-common
     OPENPROJECT_FOG_CREDENTIALS_ENDPOINT: "http://minio:9000"
     OPENPROJECT_FOG_CREDENTIALS_PATH__STYLE: "true"
     OPENPROJECT_DIRECT__UPLOADS: "false"
+    OPENPROJECT_REMOTE__STORAGE__UPLOAD__HOST: "${MINIO_PUBLIC_HOST:-minio.openproject.greact.ru}"
+    OPENPROJECT_REMOTE__STORAGE__DOWNLOAD__HOST: "${MINIO_PUBLIC_HOST:-minio.openproject.greact.ru}"
     # OPENPROJECT_FOG_CREDENTIALS_USE__SSL: "false"            # внутри Docker используем HTTP
 
   volumes:
