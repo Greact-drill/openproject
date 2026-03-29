@@ -29,9 +29,11 @@ x-openproject-common: &openproject-common
     OPENPROJECT_FOG_CREDENTIALS_AWS__ACCESS__KEY__ID: "${MINIO_ROOT_USER:-minioadmin}"
     OPENPROJECT_FOG_CREDENTIALS_AWS__SECRET__ACCESS__KEY: "${MINIO_ROOT_PASSWORD:-minioadmin123}"
     OPENPROJECT_FOG_DIRECTORY: "openproject-assets"          # имя бакета
-    OPENPROJECT_FOG_CREDENTIALS_HOST: "minio:9000"    # внутренний адрес MinIO
-    OPENPROJECT_FOG_CREDENTIALS_PATH__STYLE: "true"          # обязательно для MinIO
-    OPENPROJECT_FOG_CREDENTIALS_USE__SSL: "false"            # внутри Docker используем HTTP
+    OPENPROJECT_FOG_CREDENTIALS_HOST: "minio"
+    OPENPROJECT_FOG_CREDENTIALS_PORT: "9000"
+    OPENPROJECT_FOG_CREDENTIALS_SCHEME: "http"
+    OPENPROJECT_FOG_CREDENTIALS_PATH__STYLE: "true"
+    # OPENPROJECT_FOG_CREDENTIALS_USE__SSL: "false"            # внутри Docker используем HTTP
 
   volumes:
     # Локальные ассеты – остаются, но после переключения на MinIO они не будут использоваться для новых файлов
